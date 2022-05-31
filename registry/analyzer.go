@@ -73,12 +73,14 @@ func (c *AnalyzerCache) DefineAnalyzer(name string, typ string, config map[strin
 }
 
 func AnalyzerTypesAndInstances() ([]string, []string) {
-	emptyConfig := map[string]interface{}{}
+	config := map[string]interface{}{
+		"doNotLoadDict": true,
+	}
 	emptyCache := NewCache()
 	var types []string
 	var instances []string
 	for name, cons := range analyzers {
-		_, err := cons(emptyConfig, emptyCache)
+		_, err := cons(config, emptyCache)
 		if err == nil {
 			instances = append(instances, name)
 		} else {
