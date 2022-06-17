@@ -86,8 +86,9 @@ type IndexSnapshot struct {
 	m    sync.Mutex // Protects the fields that follow.
 	refs int64
 
-	m2        sync.Mutex                                 // Protects the fields that follow.
-	fieldTFRs map[string][]*IndexSnapshotTermFieldReader // keyed by field, recycled TFR's
+	m2         sync.Mutex                                 // Protects the fields that follow.
+	fieldTFRs  map[string][]*IndexSnapshotTermFieldReader // keyed by field, recycled TFR's
+	fieldDicts map[string][][]segment.TermDictionary      //keyed by field, recycled field dicts
 }
 
 func (i *IndexSnapshot) Segments() []*SegmentSnapshot {
@@ -138,22 +139,66 @@ func (i *IndexSnapshot) updateSize() {
 		i.size += uint64(s.Size())
 	}
 }
+func (i *IndexSnapshot) recycleFieldDicts(ifd *IndexSnapshotFieldDict) {
+	i.parent.rootLock.RLock()
+	obsolete := i.parent.root != i
+	i.parent.rootLock.RUnlock()
+	if obsolete {
+		// if we're not the current root (mutations happened), don't bother recycling
+		return
+	}
+
+	i.m2.Lock()
+	if i.fieldDicts == nil {
+		i.fieldDicts = make(map[string][][]segment.TermDictionary)
+	}
+	dicts := ifd.dicts
+	if uint64(len(i.fieldDicts[ifd.field])) < i.getFieldTFRCacheThreshold() {
+		i.fieldDicts[ifd.field] = append(i.fieldDicts[ifd.field], dicts)
+	}
+	i.m2.Unlock()
+}
+
+func (i *IndexSnapshot) getFieldDictsLOCKED(field string) []segment.TermDictionary {
+	i.m2.Lock()
+	if i.fieldDicts != nil {
+		dictsCopies := i.fieldDicts[field]
+		last := len(dictsCopies) - 1
+		if last >= 0 {
+			dicts := dictsCopies[last]
+			dictsCopies[last] = nil
+			i.fieldDicts[field] = dictsCopies[:last]
+			i.m2.Unlock()
+			return dicts
+		}
+	}
+	i.m2.Unlock()
+	return nil
+}
 
 func (i *IndexSnapshot) newIndexSnapshotFieldDict(field string,
 	makeItr func(i segment.TermDictionary) segment.DictionaryIterator,
 	randomLookup bool) (*IndexSnapshotFieldDict, error) {
 
 	results := make(chan *asynchSegmentResult)
+	dicts := i.getFieldDictsLOCKED(field)
+	type termDictionary segment.TermDictionary
 	for index, segment := range i.segment {
 		go func(index int, segment *SegmentSnapshot) {
-			dict, err := segment.segment.Dictionary(field)
+			var segDict termDictionary
+			var err error
+			if dicts != nil {
+				segDict = dicts[index]
+			} else {
+				segDict, err = segment.segment.Dictionary(field)
+			}
 			if err != nil {
 				results <- &asynchSegmentResult{err: err}
 			} else {
 				if randomLookup {
-					results <- &asynchSegmentResult{dict: dict}
+					results <- &asynchSegmentResult{dict: segDict}
 				} else {
-					results <- &asynchSegmentResult{dictItr: makeItr(dict)}
+					results <- &asynchSegmentResult{dict: segDict, dictItr: makeItr(segDict)}
 				}
 			}
 		}(index, segment)
@@ -162,6 +207,7 @@ func (i *IndexSnapshot) newIndexSnapshotFieldDict(field string,
 	var err error
 	rv := &IndexSnapshotFieldDict{
 		snapshot: i,
+		field:    field,
 		cursors:  make([]*segmentDictCursor, 0, len(i.segment)),
 	}
 	for count := 0; count < len(i.segment); count++ {
@@ -185,6 +231,7 @@ func (i *IndexSnapshot) newIndexSnapshotFieldDict(field string,
 					dict: asr.dict,
 				})
 			}
+			rv.dicts = append(rv.dicts, asr.dict)
 		}
 	}
 	// after ensuring we've read all items on channel

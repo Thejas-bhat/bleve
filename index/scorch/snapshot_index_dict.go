@@ -28,8 +28,10 @@ type segmentDictCursor struct {
 }
 
 type IndexSnapshotFieldDict struct {
+	field    string
 	snapshot *IndexSnapshot
 	cursors  []*segmentDictCursor
+	dicts    []segment.TermDictionary
 	entry    index.DictEntry
 }
 
@@ -90,6 +92,9 @@ func (i *IndexSnapshotFieldDict) Next() (*index.DictEntry, error) {
 }
 
 func (i *IndexSnapshotFieldDict) Close() error {
+	if i.snapshot != nil {
+		i.snapshot.recycleFieldDicts(i)
+	}
 	return nil
 }
 
