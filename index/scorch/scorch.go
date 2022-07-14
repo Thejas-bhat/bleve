@@ -401,8 +401,10 @@ func (s *Scorch) Batch(batch *index.Batch) (err error) {
 		analysisResults[itemsDeQueued] = result
 		itemsDeQueued++
 		result.VisitFields(func(f index.Field) {
-			atomic.AddUint64(&s.stats.TotBytesIndexedAfterAnalysis,
-				analysisBytes(f.AnalyzedTokenFrequencies()))
+			if segment.CollectIOStats {
+				atomic.AddUint64(&s.stats.TotBytesIndexedAfterAnalysis,
+					analysisBytes(f.AnalyzedTokenFrequencies()))
+			}
 		})
 	}
 	close(resultChan)
@@ -533,6 +535,14 @@ func (s *Scorch) currentSnapshot() *IndexSnapshot {
 
 func (s *Scorch) Stats() json.Marshaler {
 	return &s.stats
+}
+
+// This exported method allows the application
+// to set the state as to whether the application
+// needs to IOStats which are num_bytes_read_at_query_time
+// and num_bytes_indexed_after_analysis
+func ChangeIOStatsCollectionState(state bool) {
+	segment.CollectIOStats = state
 }
 
 func (s *Scorch) BytesReadQueryTime() uint64 {

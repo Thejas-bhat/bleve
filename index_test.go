@@ -242,6 +242,7 @@ func approxSame(actual, expected uint64) bool {
 }
 
 func TestBytesRead(t *testing.T) {
+	scorch.ChangeIOStatsCollectionState(true)
 	tmpIndexPath := createTmpIndexPath(t)
 	defer cleanupTmpIndexPath(t, tmpIndexPath)
 
@@ -415,6 +416,7 @@ func getBatchFromData(idx Index, fileName string) (*Batch, error) {
 }
 
 func TestBytesReadStored(t *testing.T) {
+	scorch.ChangeIOStatsCollectionState(true)
 	tmpIndexPath := createTmpIndexPath(t)
 	defer cleanupTmpIndexPath(t, tmpIndexPath)
 
