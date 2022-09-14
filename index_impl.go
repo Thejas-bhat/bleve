@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"sync"
@@ -359,6 +360,7 @@ func (i *indexImpl) DocCount() (count uint64, err error) {
 	}()
 
 	count, err = indexReader.DocCount()
+	log.Printf("doc_count_debug: indexImpl doc count %v\n", count)
 	return
 }
 

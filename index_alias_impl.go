@@ -16,6 +16,7 @@ package bleve
 
 import (
 	"context"
+	"log"
 	"sync"
 	"time"
 
@@ -139,9 +140,10 @@ func (i *indexAliasImpl) DocCount() (uint64, error) {
 		if err == nil {
 			rv += otherCount
 		}
+		log.Printf("doc_count_debug: indexAliasImpl doc count %v %v\n", index.Name(), otherCount)
 		// tolerate errors to produce partial counts
 	}
-
+	log.Printf("doc_count_debug: indexAliasImpl doc count sum %v\n", rv)
 	return rv, nil
 }
 
