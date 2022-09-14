@@ -1,12 +1,12 @@
 module github.com/blevesearch/bleve/v2
 
-go 1.13
+go 1.18
 
 require (
 	github.com/RoaringBitmap/roaring v0.9.4
 	github.com/bits-and-blooms/bitset v1.2.0
 	github.com/blevesearch/bleve_index_api v1.0.3
-	github.com/blevesearch/geo v0.1.13
+	github.com/blevesearch/geo v0.1.14
 	github.com/blevesearch/go-metrics v0.0.0-20201227073835-cf1acfcdf475
 	github.com/blevesearch/go-porterstemmer v1.0.3
 	github.com/blevesearch/goleveldb v1.0.1
@@ -21,10 +21,22 @@ require (
 	github.com/blevesearch/zapx/v12 v12.3.5
 	github.com/blevesearch/zapx/v13 v13.3.5
 	github.com/blevesearch/zapx/v14 v14.3.5
-	github.com/blevesearch/zapx/v15 v15.3.5-0.20220805051919-e14ad3bf63e7
+	github.com/blevesearch/zapx/v15 v15.3.5
 	github.com/couchbase/moss v0.2.0
 	github.com/golang/protobuf v1.3.2
 	github.com/spf13/cobra v0.0.5
 	go.etcd.io/bbolt v1.3.5
 	golang.org/x/text v0.3.7
+)
+
+require (
+	github.com/blevesearch/mmap-go v1.0.4 // indirect
+	github.com/couchbase/ghistogram v0.1.0 // indirect
+	github.com/golang/geo v0.0.0-20210211234256-740aa86cb551 // indirect
+	github.com/golang/snappy v0.0.1 // indirect
+	github.com/inconshreveable/mousetrap v1.0.0 // indirect
+	github.com/json-iterator/go v0.0.0-20171115153421-f7279a603ede // indirect
+	github.com/mschoch/smat v0.2.0 // indirect
+	github.com/spf13/pflag v1.0.3 // indirect
+	golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a // indirect
 )
