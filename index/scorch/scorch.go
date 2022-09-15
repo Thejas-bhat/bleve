@@ -412,10 +412,13 @@ func (s *Scorch) Batch(batch *index.Batch) (err error) {
 		if err != nil {
 			return err
 		}
-		if segB, ok := newSegment.(segment.DiskStatsReporter); ok {
-			atomic.AddUint64(&s.stats.TotBytesWrittenAtIndexTime,
-				segB.BytesWritten())
+		if collectDiskStats() {
+			if segB, ok := newSegment.(segment.DiskStatsReporter); ok {
+				atomic.AddUint64(&s.stats.TotBytesWrittenAtIndexTime,
+					segB.BytesWritten())
+			}
 		}
+
 		atomic.AddUint64(&s.iStats.newSegBufBytesAdded, bufBytes)
 	} else {
 		atomic.AddUint64(&s.stats.TotBatchesEmpty, 1)
