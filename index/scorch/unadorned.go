@@ -72,6 +72,18 @@ func (i *unadornedPostingsIteratorBitmap) Size() int {
 	return reflectStaticSizeUnadornedPostingsIteratorBitmap
 }
 
+func (i *unadornedPostingsIteratorBitmap) BytesRead() uint64 {
+	return 0
+}
+
+func (i *unadornedPostingsIteratorBitmap) BytesWritten() uint64 {
+	return 0
+}
+
+func (i *unadornedPostingsIteratorBitmap) ResetBytesRead(uint64) {
+
+}
+
 func (i *unadornedPostingsIteratorBitmap) ActualBitmap() *roaring.Bitmap {
 	return i.actualBM
 }
@@ -131,6 +143,16 @@ func (i *unadornedPostingsIterator1Hit) nextDocNumAtOrAfter(atOrAfter uint64) (u
 func (i *unadornedPostingsIterator1Hit) Size() int {
 	return reflectStaticSizeUnadornedPostingsIterator1Hit
 }
+
+func (i *unadornedPostingsIterator1Hit) BytesRead() uint64 {
+	return 0
+}
+
+func (i *unadornedPostingsIterator1Hit) BytesWritten() uint64 {
+	return 0
+}
+
+func (i *unadornedPostingsIterator1Hit) ResetBytesRead(uint64) {}
 
 func newUnadornedPostingsIteratorFrom1Hit(docNum1Hit uint64) segment.PostingsIterator {
 	return &unadornedPostingsIterator1Hit{

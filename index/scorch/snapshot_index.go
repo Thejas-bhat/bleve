@@ -149,17 +149,17 @@ func (i *IndexSnapshot) newIndexSnapshotFieldDict(field string,
 	for index, segment := range i.segment {
 		go func(index int, segment *SegmentSnapshot) {
 			var prevBytesRead uint64
-			seg, diskStatsAvailable := segment.segment.(diskStatsReporter)
-			if diskStatsAvailable {
-				prevBytesRead = seg.BytesRead()
+			// seg, diskStatsAvailable := segment.segment.(diskStatsReporter)
+			if collectDiskStats() {
+				prevBytesRead = segment.segment.BytesRead()
 			}
 			dict, err := segment.segment.Dictionary(field)
 			if err != nil {
 				results <- &asynchSegmentResult{err: err}
 			} else {
-				if diskStatsAvailable {
+				if collectDiskStats() {
 					atomic.AddUint64(&i.parent.stats.TotBytesReadAtQueryTime,
-						seg.BytesRead()-prevBytesRead)
+						segment.segment.BytesRead()-prevBytesRead)
 				}
 				if randomLookup {
 					results <- &asynchSegmentResult{dict: dict}
@@ -436,9 +436,9 @@ func (i *IndexSnapshot) Document(id string) (rv index.Document, err error) {
 
 	rvd := document.NewDocument(id)
 	var prevBytesRead uint64
-	seg, diskStatsAvailable := i.segment[segmentIndex].segment.(segment.DiskStatsReporter)
-	if diskStatsAvailable {
-		prevBytesRead = seg.BytesRead()
+	// seg, diskStatsAvailable := i.segment[segmentIndex].segment.(segment.DiskStatsReporter)
+	if collectDiskStats() {
+		prevBytesRead = i.segment[segmentIndex].segment.BytesRead()
 	}
 	err = i.segment[segmentIndex].VisitDocument(localDocNum, func(name string, typ byte, val []byte, pos []uint64) bool {
 		if name == "_id" {
@@ -471,8 +471,8 @@ func (i *IndexSnapshot) Document(id string) (rv index.Document, err error) {
 	if err != nil {
 		return nil, err
 	}
-	if diskStatsAvailable {
-		delta := seg.BytesRead() - prevBytesRead
+	if collectDiskStats() {
+		delta := i.segment[segmentIndex].segment.BytesRead() - prevBytesRead
 		atomic.AddUint64(&i.parent.stats.TotBytesReadAtQueryTime, delta)
 	}
 	return rvd, nil
@@ -529,7 +529,6 @@ func (i *IndexSnapshot) InternalID(id string) (rv index.IndexInternalID, err err
 func (is *IndexSnapshot) TermFieldReader(term []byte, field string, includeFreq,
 	includeNorm, includeTermVectors bool) (index.TermFieldReader, error) {
 	rv := is.allocTermFieldReaderDicts(field)
-
 	rv.term = term
 	rv.field = field
 	rv.snapshot = is
@@ -550,16 +549,19 @@ func (is *IndexSnapshot) TermFieldReader(term []byte, field string, includeFreq,
 		rv.dicts = make([]segment.TermDictionary, len(is.segment))
 		for i, segment := range is.segment {
 			var prevBytesRead uint64
-			segP, diskStatsAvailable := segment.segment.(diskStatsReporter)
-			if diskStatsAvailable {
-				prevBytesRead = segP.BytesRead()
+			// segP, diskStatsAvailable := segment.segment.(diskStatsReporter)
+			if collectDiskStats() {
+				prevBytesRead = segment.segment.BytesRead()
 			}
 			dict, err := segment.segment.Dictionary(field)
 			if err != nil {
 				return nil, err
 			}
-			if diskStatsAvailable {
-				atomic.AddUint64(&is.parent.stats.TotBytesReadAtQueryTime, segP.BytesRead()-prevBytesRead)
+			if collectDiskStats() {
+				if segBytesRead := segment.segment.BytesRead(); prevBytesRead < segBytesRead {
+					atomic.AddUint64(&is.parent.stats.TotBytesReadAtQueryTime,
+						segBytesRead-prevBytesRead)
+				}
 			}
 			rv.dicts[i] = dict
 		}
@@ -567,8 +569,8 @@ func (is *IndexSnapshot) TermFieldReader(term []byte, field string, includeFreq,
 
 	for i, segment := range is.segment {
 		var prevBytesReadPL uint64
-		if postings, diskStatsAvailable := rv.postings[i].(diskStatsReporter); diskStatsAvailable {
-			prevBytesReadPL = postings.BytesRead()
+		if collectDiskStats() && rv.postings[i] != nil {
+			prevBytesReadPL = rv.postings[i].BytesRead()
 		}
 		pl, err := rv.dicts[i].PostingsList(term, segment.deleted, rv.postings[i])
 		if err != nil {
@@ -577,22 +579,23 @@ func (is *IndexSnapshot) TermFieldReader(term []byte, field string, includeFreq,
 		rv.postings[i] = pl
 
 		var prevBytesReadItr uint64
-		if itr, diskStatsAvailable := rv.iterators[i].(diskStatsReporter); diskStatsAvailable {
-			prevBytesReadItr = itr.BytesRead()
+		if collectDiskStats() && rv.iterators[i] != nil {
+			prevBytesReadItr = rv.iterators[i].BytesRead()
 		}
 		rv.iterators[i] = pl.Iterator(includeFreq, includeNorm, includeTermVectors, rv.iterators[i])
 
-		if postings, diskStatsAvailable := pl.(diskStatsReporter); diskStatsAvailable &&
-			prevBytesReadPL < postings.BytesRead() {
-			atomic.AddUint64(&is.parent.stats.TotBytesReadAtQueryTime,
-				postings.BytesRead()-prevBytesReadPL)
+		if collectDiskStats() {
+			if plBytesRead := pl.BytesRead(); prevBytesReadPL < plBytesRead {
+				atomic.AddUint64(&is.parent.stats.TotBytesReadAtQueryTime,
+					plBytesRead-prevBytesReadPL)
+			}
+
+			if itrBytesRead := rv.iterators[i].BytesRead(); prevBytesReadItr < itrBytesRead {
+				atomic.AddUint64(&is.parent.stats.TotBytesReadAtQueryTime,
+					itrBytesRead-prevBytesReadItr)
+			}
 		}
 
-		if itr, diskStatsAvailable := rv.iterators[i].(diskStatsReporter); diskStatsAvailable &&
-			prevBytesReadItr < itr.BytesRead() {
-			atomic.AddUint64(&is.parent.stats.TotBytesReadAtQueryTime,
-				itr.BytesRead()-prevBytesReadItr)
-		}
 	}
 	atomic.AddUint64(&is.parent.stats.TotTermSearchersStarted, uint64(1))
 	return rv, nil
@@ -712,16 +715,20 @@ func (i *IndexSnapshot) documentVisitFieldTermsOnSegment(
 
 	if ssvOk && ssv != nil && len(vFields) > 0 {
 		var prevBytesRead uint64
-		ssvp, diskStatsAvailable := ssv.(segment.DiskStatsReporter)
-		if diskStatsAvailable {
-			prevBytesRead = ssvp.BytesRead()
+		// var ssvp segment.DiskStatsReporter
+		// var diskStatsAvailable bool
+		// if collectDiskStats() {
+		// 	ssvp, diskStatsAvailable = ssv.(segment.DiskStatsReporter)
+		// }
+		if collectDiskStats() {
+			prevBytesRead = ss.segment.BytesRead()
 		}
 		dvs, err = ssv.VisitDocValues(localDocNum, fields, visitor, dvs)
 		if err != nil {
 			return nil, nil, err
 		}
-		if diskStatsAvailable {
-			atomic.AddUint64(&i.parent.stats.TotBytesReadAtQueryTime, ssvp.BytesRead()-prevBytesRead)
+		if collectDiskStats() {
+			atomic.AddUint64(&i.parent.stats.TotBytesReadAtQueryTime, ss.segment.BytesRead()-prevBytesRead)
 		}
 	}
 

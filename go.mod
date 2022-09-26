@@ -40,3 +40,13 @@ require (
 	github.com/spf13/pflag v1.0.3 // indirect
 	golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a // indirect
 )
+
+replace github.com/blevesearch/zapx/v15 => ../zapx
+
+// replace github.com/blevesearch/zapx/v14 => ../zapx14
+
+// replace github.com/blevesearch/zapx/v13 => ../zapx13
+
+// replace github.com/blevesearch/zapx/v12 => ../zapx12
+
+// replace github.com/blevesearch/zapx/v11 => ../zapx11

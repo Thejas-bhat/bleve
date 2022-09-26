@@ -354,11 +354,15 @@ func (s *Scorch) planMergeAtSnapshot(ctx context.Context,
 				return err
 			}
 
-			switch segI := seg.(type) {
-			case segment.DiskStatsReporter:
-				totalBytesRead := segI.BytesRead() + prevBytesReadTotal
-				segI.ResetBytesRead(totalBytesRead)
-				seg = segI.(segment.Segment)
+			// switch segI := seg.(type) {
+			// case segment.DiskStatsReporter:
+			// 	totalBytesRead := segI.BytesRead() + prevBytesReadTotal
+			// 	segI.ResetBytesRead(totalBytesRead)
+			// 	seg = segI.(segment.Segment)
+			// }
+			if collectDiskStats() {
+				totalBytesRead := seg.BytesRead() + prevBytesReadTotal
+				seg.ResetBytesRead(totalBytesRead)
 			}
 
 			oldNewDocNums = make(map[uint64][]uint64)
@@ -438,8 +442,8 @@ type segmentMerge struct {
 func cumulateBytesRead(sbs []segment.Segment) uint64 {
 	var rv uint64
 	for _, seg := range sbs {
-		if segI, diskStatsAvailable := seg.(segment.DiskStatsReporter); diskStatsAvailable {
-			rv += segI.BytesRead()
+		if collectDiskStats() {
+			rv += seg.BytesRead()
 		}
 	}
 	return rv
