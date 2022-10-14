@@ -161,6 +161,8 @@ type DocumentMatch struct {
 	// used to maintain natural index order
 	HitNumber uint64 `json:"-"`
 
+	BytesRead uint64 `json:"-"`
+
 	// used to temporarily hold field term location information during
 	// search processing in an efficient, recycle-friendly manner, to
 	// be later incorporated into the Locations map when search

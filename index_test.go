@@ -351,6 +351,7 @@ func TestBytesWritten(t *testing.T) {
 }
 
 func TestBytesRead(t *testing.T) {
+	scorch.SetDiskStatsCollection(true)
 	tmpIndexPath := createTmpIndexPath(t)
 	defer cleanupTmpIndexPath(t, tmpIndexPath)
 
