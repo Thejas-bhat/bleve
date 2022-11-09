@@ -472,7 +472,7 @@ func (s *Scorch) prepareSegment(newSegment segment.Segment, ids []string,
 		if err != nil {
 			return err
 		}
-		introduction.obsoletes[seg.id] = delta
+		introduction.obsoletes[seg.id] = delta.DocNumbers()
 	}
 
 	introStartTime := time.Now()

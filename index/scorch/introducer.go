@@ -134,13 +134,14 @@ func (s *Scorch) introduceSegment(next *segmentIntroduction) error {
 		delta, ok := next.obsoletes[root.segment[i].id]
 		if !ok {
 			var err error
-			delta, err = root.segment[i].segment.DocNumbers(next.ids)
+			d, err := root.segment[i].segment.DocNumbers(next.ids)
 			if err != nil {
 				next.applied <- fmt.Errorf("error computing doc numbers: %v", err)
 				close(next.applied)
 				_ = newSnapshot.DecRef()
 				return err
 			}
+			delta = d.DocNumbers()
 		}
 
 		newss := &SegmentSnapshot{

@@ -22,7 +22,7 @@ import (
 
 	"github.com/blevesearch/bleve/v2/size"
 	index "github.com/blevesearch/bleve_index_api"
-	"github.com/blevesearch/upsidedown_store_api"
+	store "github.com/blevesearch/upsidedown_store_api"
 )
 
 var reflectStaticSizeUpsideDownCouchTermFieldReader int
@@ -210,6 +210,10 @@ func (r *UpsideDownCouchDocIDReader) Size() int {
 	}
 
 	return sizeInBytes
+}
+
+func (r *UpsideDownCouchDocIDReader) BytesRead() uint64 {
+	return 0
 }
 
 func newUpsideDownCouchDocIDReader(indexReader *IndexReader) (*UpsideDownCouchDocIDReader, error) {

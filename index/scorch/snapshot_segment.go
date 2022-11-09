@@ -78,14 +78,33 @@ func (s *SegmentSnapshot) Count() uint64 {
 	return rv
 }
 
-func (s *SegmentSnapshot) DocNumbers(docIDs []string) (*roaring.Bitmap, error) {
-	rv, err := s.segment.DocNumbers(docIDs)
+type DocIDDictionary struct {
+	size    uint64
+	docNums *roaring.Bitmap
+}
+
+func (d *DocIDDictionary) Size() uint64 {
+	return d.size
+}
+
+func (d *DocIDDictionary) DocNumbers() *roaring.Bitmap {
+	return d.docNums
+}
+
+func (s *SegmentSnapshot) DocNumbers(docIDs []string) (segment.DocIDDictionary, error) {
+	docIDDict, err := s.segment.DocNumbers(docIDs)
+	rv := &DocIDDictionary{}
+	rv.docNums = docIDDict.DocNumbers()
 	if err != nil {
 		return nil, err
 	}
 	if s.deleted != nil {
-		rv.AndNot(s.deleted)
+		docNums := docIDDict.DocNumbers()
+		docNums.AndNot(s.deleted)
+		rv.docNums = docNums
 	}
+
+	rv.size = docIDDict.Size()
 	return rv, nil
 }
 

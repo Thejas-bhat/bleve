@@ -45,6 +45,9 @@ func NewDocIDSearcher(ctx context.Context, indexReader index.IndexReader, ids []
 	if err != nil {
 		return nil, err
 	}
+	if ctx != nil {
+		reportIOStats(reader.BytesRead(), ctx)
+	}
 	scorer := scorer.NewConstantScorer(1.0, boost, options)
 	return &DocIDSearcher{
 		scorer: scorer,

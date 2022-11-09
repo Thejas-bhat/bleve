@@ -19,6 +19,7 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -49,6 +50,8 @@ type asynchSegmentResult struct {
 	postings segment.PostingsList
 
 	err error
+
+	size uint64
 }
 
 var reflectStaticSizeIndexSnapshot int
@@ -340,7 +343,8 @@ func (i *IndexSnapshot) DocIDReaderOnly(ids []string) (index.DocIDReader, error)
 			} else {
 				results <- &asynchSegmentResult{
 					index: index,
-					docs:  docs,
+					docs:  docs.DocNumbers(),
+					size:  docs.Size(),
 				}
 			}
 		}(index, segment)
@@ -363,6 +367,8 @@ func (i *IndexSnapshot) newDocIDReader(results chan *asynchSegmentResult) (index
 				err = asr.err
 			}
 		} else if err == nil {
+			rv.bytesRead += asr.size
+			log.Printf("the docs val %v", asr.docs == nil)
 			rv.iterators[asr.index] = asr.docs.Iterator()
 		}
 	}

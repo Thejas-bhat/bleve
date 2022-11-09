@@ -34,6 +34,11 @@ type IndexSnapshotDocIDReader struct {
 	snapshot      *IndexSnapshot
 	iterators     []roaring.IntIterable
 	segmentOffset int
+	bytesRead     uint64
+}
+
+func (i *IndexSnapshotDocIDReader) BytesRead() uint64 {
+	return i.bytesRead
 }
 
 func (i *IndexSnapshotDocIDReader) Size() int {
