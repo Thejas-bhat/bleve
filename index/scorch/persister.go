@@ -529,6 +529,12 @@ func prepareBoltSnapshot(snapshot *IndexSnapshot, tx *bolt.Tx, path string,
 		}
 	}
 
+	val := make([]byte, 8)
+	bytesWritten := atomic.LoadUint64(&snapshot.parent.stats.TotBytesWrittenAtIndexTime)
+	binary.LittleEndian.PutUint64(val, bytesWritten)
+
+	internalBucket.Put(TotBytesWrittenKey, val)
+
 	var filenames []string
 	newSegmentPaths := make(map[uint64]string)
 
@@ -682,6 +688,7 @@ var boltInternalKey = []byte{'i'}
 var boltMetaDataKey = []byte{'m'}
 var boltMetaDataSegmentTypeKey = []byte("type")
 var boltMetaDataSegmentVersionKey = []byte("version")
+var TotBytesWrittenKey = []byte("TotBytesWritten")
 
 func (s *Scorch) loadFromBolt() error {
 	return s.rootBolt.View(func(tx *bolt.Tx) error {
