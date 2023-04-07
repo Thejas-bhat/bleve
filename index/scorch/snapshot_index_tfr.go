@@ -17,7 +17,9 @@ package scorch
 import (
 	"bytes"
 	"fmt"
+	"log"
 	"reflect"
+	"runtime"
 	"sync/atomic"
 
 	"github.com/blevesearch/bleve/v2/size"
@@ -172,9 +174,22 @@ func (i *IndexSnapshotTermFieldReader) Advance(ID index.IndexInternalID, preAllo
 }
 
 func (i *IndexSnapshotTermFieldReader) Count() uint64 {
+	var fidx int
+	defer func() {
+		if err := recover(); err != nil {
+			buf := make([]byte, 2048)
+			n := runtime.Stack(buf, false)
+			log.Printf("debug: encountered a panic in Count() term: %s field: %s err: %v "+
+				"trace :%s", i.term, i.field, err, string(buf[:n]))
+			log.Printf("debug: encountered a panic in Count() the size of postings: %v ",
+				i.postings[fidx].Size())
+		}
+	}()
+
 	var rv uint64
-	for _, posting := range i.postings {
+	for idx, posting := range i.postings {
 		rv += posting.Count()
+		fidx = idx
 	}
 	return rv
 }
