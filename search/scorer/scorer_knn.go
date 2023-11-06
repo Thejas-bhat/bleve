@@ -18,6 +18,7 @@
 package scorer
 
 import (
+	"fmt"
 	"reflect"
 
 	"github.com/blevesearch/bleve/v2/search"
@@ -33,16 +34,17 @@ func init() {
 }
 
 type KNNQueryScorer struct {
-	queryVector      []float32
-	queryField       string
-	queryWeight      float64
-	queryBoost       float64
-	queryNorm        float64
-	docTerm          uint64
-	docTotal         uint64
-	options          search.SearcherOptions
-	includeScore     bool
-	similarityMetric string
+	queryVector            []float32
+	queryField             string
+	queryWeight            float64
+	queryBoost             float64
+	queryNorm              float64
+	docTerm                uint64
+	docTotal               uint64
+	options                search.SearcherOptions
+	includeScore           bool
+	similarityMetric       string
+	queryWeightExplanation *search.Explanation
 }
 
 func NewKNNQueryScorer(queryVector []float32, queryField string, queryBoost float64,
@@ -68,15 +70,45 @@ func (sqs *KNNQueryScorer) Score(ctx *search.SearchContext,
 	if sqs.includeScore || sqs.options.Explain {
 		var scoreExplanation *search.Explanation
 		score := knnMatch.Score
-		if sqs.similarityMetric == util.EuclideanDistance {
-			// eucliden distances need to be inverted to work
-			// tf-idf scoring
+		var similarityScoreExpl *search.Explanation
+		switch sqs.similarityMetric {
+		case util.EuclideanDistance:
+			// eucliden distances need to be inverted so as to keep consistent
+			// with the usual document relevancy ordering as per the score.
 			score = 1.0 / score
+			fallthrough
+		default:
+			if sqs.options.Explain {
+				similarityScoreExpl = &search.Explanation{
+					Value:   score,
+					Message: fmt.Sprintf("similarityScore(%s:%v)=%f", sqs.queryField, sqs.queryVector, score),
+				}
+			}
+		}
+
+		if sqs.options.Explain {
+			childrenExplanations := make([]*search.Explanation, 1)
+			childrenExplanations[0] = similarityScoreExpl
+			scoreExplanation = &search.Explanation{
+				Value:    score,
+				Message:  fmt.Sprintf("fieldWeight(%s:%v in %s), product of:", sqs.queryField, sqs.queryVector, knnMatch.ID),
+				Children: childrenExplanations,
+			}
 		}
 
 		// if the query weight isn't 1, multiply
 		if sqs.queryWeight != 1.0 {
 			score = score * sqs.queryWeight
+			if sqs.options.Explain {
+				childExplanations := make([]*search.Explanation, 2)
+				childExplanations[0] = sqs.queryWeightExplanation
+				childExplanations[1] = scoreExplanation
+				scoreExplanation = &search.Explanation{
+					Value:    score,
+					Message:  fmt.Sprintf("weight(%s:%v^%f in %s), product of:", sqs.queryField, sqs.queryVector, sqs.queryBoost, knnMatch.ID),
+					Children: childExplanations,
+				}
+			}
 		}
 
 		if sqs.includeScore {
@@ -101,4 +133,20 @@ func (sqs *KNNQueryScorer) SetQueryNorm(qnorm float64) {
 
 	// update the query weight
 	sqs.queryWeight = sqs.queryBoost * sqs.queryNorm
+	if sqs.options.Explain {
+		childrenExplanations := make([]*search.Explanation, 2)
+		childrenExplanations[0] = &search.Explanation{
+			Value:   sqs.queryBoost,
+			Message: "boost",
+		}
+		childrenExplanations[1] = &search.Explanation{
+			Value:   sqs.queryNorm,
+			Message: "queryNorm",
+		}
+		sqs.queryWeightExplanation = &search.Explanation{
+			Value:    sqs.queryWeight,
+			Message:  fmt.Sprintf("queryWeight(%s:%v^%f), product of:", sqs.queryField, sqs.queryVector, sqs.queryBoost),
+			Children: childrenExplanations,
+		}
+	}
 }
