@@ -49,7 +49,8 @@ func (o *OptimizeVR) Finish() error {
 		if cbF, ok := cb.(search.SearchSearcherEndCallbackFn); ok {
 			defer func() {
 				// notify the callback that the searcher creation etc. is finished
-				// and report back the total cost for it decrement or whatever.
+				// and report back the total cost for it to track and take actions
+				// appropriately.
 				_ = cbF(o.totalCost)
 			}()
 		}
@@ -155,11 +156,12 @@ func (s *IndexSnapshotVectorReader) VectorOptimize(ctx context.Context,
 		}
 	}
 
-	if _, ok := o.vrs[s.field]; ok {
-		// total cost is essentially the sum of the vector indexes' size of all
-		// unique fields across all segments
-		o.totalCost += sumVectorIndexSize
-	}
+	// total cost is essentially the sum of the vector indexes' size across all the
+	// searchers - all of them end up reading and maintaining a vector index.
+	// misacconting this value would end up calling the "end" callback with a value
+	// not equal to the value passed to "start" callback.
+	o.totalCost += sumVectorIndexSize
+
 	o.vrs[s.field] = append(o.vrs[s.field], s)
 	o.ctx = ctx
 	return o, nil
