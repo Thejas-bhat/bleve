@@ -388,3 +388,8 @@ type SynonymIndex interface {
 	// IndexSynonym indexes a synonym definition, with the specified id and belonging to the specified collection.
 	IndexSynonym(id string, collection string, definition *SynonymDefinition) error
 }
+
+type VectorIndex interface {
+	Index
+	Train(*Batch) error
+}

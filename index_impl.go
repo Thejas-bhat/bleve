@@ -370,6 +370,20 @@ func (i *indexImpl) IndexSynonym(id string, collection string, definition *Synon
 	return err
 }
 
+func (i *indexImpl) Train(batch *Batch) error {
+	i.mutex.RLock()
+	defer i.mutex.RUnlock()
+
+	if !i.open {
+		return ErrorIndexClosed
+	}
+
+	if vi, ok := i.i.(VectorIndex); ok {
+		return vi.Train(batch)
+	}
+	return fmt.Errorf("not a vector index")
+}
+
 // IndexAdvanced takes a document.Document object
 // skips the mapping and indexes it.
 func (i *indexImpl) IndexAdvanced(doc *document.Document) (err error) {
@@ -745,7 +759,6 @@ func (i *indexImpl) SearchInContext(ctx context.Context, req *SearchRequest) (sr
 	if !contextScoreFusionKeyExists {
 		setKnnHitsInCollector(knnHits, req, coll)
 	}
-	
 
 	if fts != nil {
 		if is, ok := indexReader.(*scorch.IndexSnapshot); ok {
@@ -1328,6 +1341,7 @@ func (m *searchHitSorter) Less(i, j int) bool {
 	return c < 0
 }
 
+// CopyTo (index.Directory, filter)
 func (i *indexImpl) CopyTo(d index.Directory) (err error) {
 	i.mutex.RLock()
 	defer i.mutex.RUnlock()
@@ -1340,6 +1354,8 @@ func (i *indexImpl) CopyTo(d index.Directory) (err error) {
 	if !ok {
 		return fmt.Errorf("index implementation does not support copy reader")
 	}
+
+	// copyIndex.Copy() -> copies the centroid index
 
 	copyReader := copyIndex.CopyReader()
 	if copyReader == nil {
