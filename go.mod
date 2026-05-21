@@ -44,3 +44,7 @@ require (
 	golang.org/x/net v0.51.0 // indirect
 	golang.org/x/sys v0.42.0 // indirect
 )
+
+replace github.com/blevesearch/zapx/v17 => /Users/thejas.orkombu/fts/blevesearch/zapx
+
+replace github.com/blevesearch/bleve_index_api => /Users/thejas.orkombu/fts/blevesearch/bleve_index_api
